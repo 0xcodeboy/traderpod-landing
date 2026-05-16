@@ -798,14 +798,80 @@
     <div class="cta-block">
       <h2>Be first when we <em>open the doors.</em></h2>
       <p>We're shipping Trader's Pod milestone by milestone. Early members get founder pricing, direct access to the build, and a hand in shaping the rule engine.</p>
-      <form class="waitlist-form" onsubmit="event.preventDefault(); this.querySelector('button').innerText = 'JOINED ✓'; this.querySelector('button').disabled = true; this.querySelector('input').value = '';">
-        <input type="email" placeholder="your@email.com" required />
-        <button type="submit">JOIN WAITLIST</button>
+      <form class="waitlist-form" id="waitlistForm">
+        <input type="email" id="waitlistEmail" placeholder="your@email.com" required autocomplete="email" />
+        <button type="submit" id="waitlistBtn">JOIN WAITLIST</button>
       </form>
-      <!-- NOTE: Form is presentational. Wire to Formspree, ConvertKit, or your backend later. -->
+      <p id="waitlistMsg" style="margin-top:16px;font-family:var(--font-mono);font-size:12px;letter-spacing:0.04em;min-height:18px;"></p>
     </div>
   </div>
 </section>
+
+<!-- ========== WAITLIST SUPABASE WIRING ========== -->
+<script>
+  // Supabase project: traders-pod (kyteqwrhqiwmftzejxtq)
+  const SUPABASE_URL = 'https://kyteqwrhqiwmftzejxtq.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_CLJY3gvHnRlCgnGzJKdTfw_UfG3yuvN';
+
+  const form = document.getElementById('waitlistForm');
+  const emailInput = document.getElementById('waitlistEmail');
+  const btn = document.getElementById('waitlistBtn');
+  const msg = document.getElementById('waitlistMsg');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email) return;
+
+    btn.disabled = true;
+    btn.textContent = 'JOINING...';
+    msg.textContent = '';
+    msg.style.color = 'var(--text-muted)';
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/waitlist`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          email: email,
+          source: 'traderpod.vercel.app',
+          user_agent: navigator.userAgent.slice(0, 200)
+        })
+      });
+
+      if (res.ok) {
+        btn.textContent = 'JOINED ✓';
+        msg.style.color = 'var(--accent)';
+        msg.textContent = "You're in. We'll be in touch.";
+        emailInput.value = '';
+      } else if (res.status === 409) {
+        // Unique constraint violation — already on the list
+        btn.textContent = 'ALREADY IN ✓';
+        msg.style.color = 'var(--accent)';
+        msg.textContent = "You're already on the waitlist.";
+        emailInput.value = '';
+      } else {
+        const err = await res.text();
+        console.error('Waitlist error:', res.status, err);
+        btn.disabled = false;
+        btn.textContent = 'JOIN WAITLIST';
+        msg.style.color = 'var(--warn)';
+        msg.textContent = 'Something went wrong. Try again.';
+      }
+    } catch (err) {
+      console.error('Waitlist network error:', err);
+      btn.disabled = false;
+      btn.textContent = 'JOIN WAITLIST';
+      msg.style.color = 'var(--warn)';
+      msg.textContent = 'Network error. Check your connection.';
+    }
+  });
+</script>
 
 <!-- ========== FOOTER ========== -->
 <footer>
